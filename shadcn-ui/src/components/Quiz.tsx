@@ -218,10 +218,61 @@ export default function Quiz({
   const answeredCount = answers.filter((a) => a >= 0).length;
   const currentQuestionData = questions[currentQuestion];
 
+  /* =======================
+     FULL SCREEN ENFORCEMENT
+     ======================= */
+  const [isFullScreen, setIsFullScreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullScreenChange = () => {
+      const isFs = !!document.fullscreenElement;
+      setIsFullScreen(isFs);
+      if (!isFs && !submitting) {
+        handleCheatDetected('Exited Full Screen Mode');
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullScreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullScreenChange);
+  }, [submitting, handleCheatDetected]);
+
+  const enterFullScreen = async () => {
+    try {
+      await document.documentElement.requestFullscreen();
+    } catch (err) {
+      console.error('Error entering full screen:', err);
+    }
+  };
+
+  /* =======================
+     RENDER
+     ======================= */
   if (!currentQuestionData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <p className="text-black text-lg">Loading quiz...</p>
+      </div>
+    );
+  }
+
+  // Force Full Screen Overlay
+  if (!isFullScreen && !submitting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white p-4">
+        <div className="max-w-md text-center space-y-6">
+          <AlertCircle className="h-16 w-16 text-yellow-500 mx-auto" />
+          <h1 className="text-2xl font-bold">Full Screen Required</h1>
+          <p className="text-gray-300">
+            This exam relies on cheat detection that requires full screen mode.
+            Please enabling full screen to view the questions.
+          </p>
+          <Button
+            onClick={enterFullScreen}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-lg"
+          >
+            Enable Full Screen & Continue
+          </Button>
+        </div>
       </div>
     );
   }

@@ -270,7 +270,7 @@ export default function StartForm({ onStart }: StartFormProps) {
 
           <div className="mt-6 pt-4 border-t border-gray-200">
             <p className="text-xs text-gray-600 text-center">
-              • 10 questions • 10 minutes • One attempt only
+              • 10 questions • 10 minutes • One attempt only • Mandatory Full Screen
             </p>
           </div>
         </CardContent>
