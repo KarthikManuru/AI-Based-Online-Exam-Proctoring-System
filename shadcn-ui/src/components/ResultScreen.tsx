@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Trophy, CheckCircle2, XCircle, AlertTriangle, Home } from 'lucide-react';
-import { getAttemptById } from '@/lib/db';
+import { getAttemptById } from '@/lib/api';
 import { Attempt, AttemptResponse } from '@/lib/types';
 
 interface ResultScreenProps {
@@ -60,9 +60,8 @@ export default function ResultScreen({ attemptId, score, total, onBackToHome }: 
         {/* Result Summary Card */}
         <Card className="border-gray-300 shadow-lg">
           <CardHeader className="text-center border-b border-gray-200 pb-6">
-            <div className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-4 ${
-              passed ? 'bg-green-100' : 'bg-yellow-100'
-            }`}>
+            <div className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-4 ${passed ? 'bg-green-100' : 'bg-yellow-100'
+              }`}>
               <Trophy className={`h-10 w-10 ${passed ? 'text-green-600' : 'text-yellow-600'}`} />
             </div>
             <CardTitle className="text-3xl font-bold text-black mb-2">
@@ -161,11 +160,10 @@ export default function ResultScreen({ attemptId, score, total, onBackToHome }: 
               {attempt.responses.map((response: AttemptResponse, index: number) => (
                 <div
                   key={index}
-                  className={`p-4 rounded-lg border-2 ${
-                    response.isCorrect
+                  className={`p-4 rounded-lg border-2 ${response.isCorrect
                       ? 'border-green-200 bg-green-50'
                       : 'border-red-200 bg-red-50'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start gap-3 mb-2">
                     {response.isCorrect ? (

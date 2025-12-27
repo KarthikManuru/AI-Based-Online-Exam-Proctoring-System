@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { initDB } from '@/lib/db';
+
 import { stopCamera } from '@/lib/camera';
 import { Question } from '@/lib/types';
 import StartForm from '@/components/StartForm';
@@ -15,19 +15,9 @@ export default function Home() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [score, setScore] = useState(0);
   const [total, setTotal] = useState(0);
-  const [initialized, setInitialized] = useState(false);
+
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        await initDB();
-        setInitialized(true);
-      } catch (err) {
-        console.error('DB init failed', err);
-      }
-    };
-    init();
-
     return () => stopCamera();
   }, []);
 
@@ -54,13 +44,7 @@ export default function Home() {
     setState('start');
   };
 
-  if (!initialized) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        Initializing quiz system...
-      </div>
-    );
-  }
+
 
   return (
     <>

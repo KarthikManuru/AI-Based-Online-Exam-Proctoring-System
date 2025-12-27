@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, CameraOff, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
-import { getCurrentStream } from '@/lib/camera';
+import Draggable from 'react-draggable';
+import { Camera, CameraOff, Maximize2, Minimize2, AlertTriangle, Smartphone, Users, ScanFace } from 'lucide-react';
+import { getCurrentStream, requestCameraPermission } from '@/lib/camera';
 import type { ObjectDetectionModel, DetectedObject } from '@/lib/types';
 
 interface DraggableCameraPreviewProps {
@@ -10,27 +11,41 @@ interface DraggableCameraPreviewProps {
 
 export default function DraggableCameraPreview({ onCheatDetected, enabled = true }: DraggableCameraPreviewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const nodeRef = useRef(null);
   const [isActive, setIsActive] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [detectionStatus, setDetectionStatus] = useState<string>('Initializing...');
-  const [isDragging, setIsDragging] = useState(false);
-  const [position, setPosition] = useState({ x: window.innerWidth - 280, y: 80 });
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastCheatTime = useRef<number>(0);
+
+  const lastFacePosition = useRef<{ x: number, y: number } | null>(null);
+  const movementWarnings = useRef<number>(0);
 
   useEffect(() => {
-    const stream = getCurrentStream();
-    
-    if (stream && videoRef.current) {
-      videoRef.current.srcObject = stream;
-      setIsActive(true);
-      
-      // Load detection model
-      if (enabled) {
-        loadDetectionModel();
+    const initCamera = async () => {
+      let stream = getCurrentStream();
+
+      if (!stream) {
+        console.log('Stream lost, attempting to recover...');
+        const granted = await requestCameraPermission();
+        if (granted) {
+          stream = getCurrentStream();
+        }
       }
-    }
+
+      if (stream && videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setIsActive(true);
+
+        if (enabled) {
+          loadDetectionModel();
+        }
+      } else {
+        setIsActive(false);
+      }
+    };
+
+    initCamera();
 
     return () => {
       stopDetection();
@@ -42,16 +57,25 @@ export default function DraggableCameraPreview({ onCheatDetected, enabled = true
 
   const loadDetectionModel = async () => {
     try {
-      // Dynamically import to avoid blocking
       const cocoSsd = await import('@tensorflow-models/coco-ssd');
       await import('@tensorflow/tfjs');
-      
+
       const model = await cocoSsd.load();
-      setDetectionStatus('Detection active');
+      setDetectionStatus('AI Monitoring Active');
       startDetection(model);
     } catch (err) {
       console.error('Failed to load detection model:', err);
-      setDetectionStatus('Detection unavailable');
+      setDetectionStatus('AI features unavailable');
+    }
+  };
+
+  const reportCheat = (reason: string) => {
+    const now = Date.now();
+    if (now - lastCheatTime.current > 5000) {
+      lastCheatTime.current = now;
+      if (onCheatDetected) {
+        onCheatDetected(reason);
+      }
     }
   };
 
@@ -62,43 +86,61 @@ export default function DraggableCameraPreview({ onCheatDetected, enabled = true
       if (videoRef.current && videoRef.current.readyState === 4) {
         try {
           const predictions: DetectedObject[] = await model.detect(videoRef.current);
-          
-          // Check for multiple persons
+
           const persons = predictions.filter((p: DetectedObject) => p.class === 'person');
           if (persons.length > 1) {
             setDetectionStatus('⚠️ Multiple persons detected!');
-            if (onCheatDetected) {
-              onCheatDetected('Multiple persons detected in camera view');
-            }
+            reportCheat('Multiple people detected in view');
             return;
           }
-          
-          // Check for cell phone
-          const cellPhone = predictions.find((p: DetectedObject) => p.class === 'cell phone');
-          if (cellPhone) {
-            setDetectionStatus('⚠️ Cell phone detected!');
-            if (onCheatDetected) {
-              onCheatDetected('Cell phone detected in camera view');
-            }
+
+          const forbiddenObjects = predictions.filter((p: DetectedObject) =>
+            ['cell phone', 'laptop', 'remote'].includes(p.class)
+          );
+
+          if (forbiddenObjects.length > 0) {
+            const objName = forbiddenObjects[0].class;
+            setDetectionStatus(`⚠️ ${objName} detected!`);
+            reportCheat(`Electronic device (${objName}) detected`);
             return;
           }
-          
-          // Check if no person is detected
+
           if (persons.length === 0) {
-            setDetectionStatus('⚠️ No person detected!');
-            if (onCheatDetected) {
-              onCheatDetected('No person detected - student may have left');
-            }
+            setDetectionStatus('⚠️ No student detected!');
+            reportCheat('Student left camera view');
             return;
           }
-          
-          // All good
-          setDetectionStatus('✓ Normal - 1 person detected');
+
+          const person = persons[0];
+          const [x, y, w, h] = person.bbox;
+          const centerX = x + w / 2;
+          const centerY = y + h / 2;
+
+          if (lastFacePosition.current) {
+            const dist = Math.sqrt(
+              Math.pow(centerX - lastFacePosition.current.x, 2) +
+              Math.pow(centerY - lastFacePosition.current.y, 2)
+            );
+
+            if (dist > 100) {
+              movementWarnings.current += 1;
+              if (movementWarnings.current > 2) {
+                setDetectionStatus('⚠️ Suspicious movement');
+                reportCheat('Suspicious head/eye movement detected');
+                movementWarnings.current = 0;
+              }
+            } else {
+              if (movementWarnings.current > 0) movementWarnings.current--;
+            }
+          }
+          lastFacePosition.current = { x: centerX, y: centerY };
+
+          setDetectionStatus('✓ Monitoring Secure');
         } catch (err) {
           console.error('Detection error:', err);
         }
       }
-    }, 3000); // Check every 3 seconds
+    }, 1000);
   };
 
   const stopDetection = () => {
@@ -112,111 +154,72 @@ export default function DraggableCameraPreview({ onCheatDetected, enabled = true
     setIsExpanded(!isExpanded);
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.drag-handle')) {
-      setIsDragging(true);
-      setDragStart({
-        x: e.clientX - position.x,
-        y: e.clientY - position.y
-      });
-    }
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (isDragging) {
-      const newX = e.clientX - dragStart.x;
-      const newY = e.clientY - dragStart.y;
-      
-      // Keep within bounds
-      const maxX = window.innerWidth - (isExpanded ? 384 : 256);
-      const maxY = window.innerHeight - (isExpanded ? 288 : 192);
-      
-      setPosition({
-        x: Math.max(0, Math.min(newX, maxX)),
-        y: Math.max(0, Math.min(newY, maxY))
-      });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, dragStart]);
-
   const sizeClass = isExpanded ? 'w-96 h-72' : 'w-64 h-48';
 
   return (
-    <div
-      ref={containerRef}
-      className={`fixed ${sizeClass} z-50 transition-all duration-300`}
-      style={{ 
-        left: `${position.x}px`, 
-        top: `${position.y}px`,
-        cursor: isDragging ? 'grabbing' : 'default'
-      }}
-      onMouseDown={handleMouseDown}
-    >
-      <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden border-2 border-gray-300 shadow-2xl">
-        {isActive ? (
-          <>
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-            />
-            
-            {/* Drag Handle */}
-            <div className="drag-handle absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-black/70 to-transparent cursor-grab active:cursor-grabbing flex items-center justify-between px-2">
-              <div className="flex items-center gap-1 text-white text-xs font-medium">
-                <Camera className="h-3 w-3" />
-                <span>Drag to move</span>
-              </div>
-              <button
-                onClick={toggleExpand}
-                className="text-white hover:text-green-400 transition-colors p-1"
-                title={isExpanded ? 'Minimize' : 'Maximize'}
-              >
-                {isExpanded ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
-              </button>
-            </div>
+    <Draggable nodeRef={nodeRef} handle=".drag-handle" bounds="window">
+      <div
+        ref={nodeRef}
+        className={`fixed z-50 shadow-2xl rounded-lg overflow-hidden border-2 border-gray-300 ${sizeClass}`}
+        style={{ right: 20, top: 80 }}
+      >
+        <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden border-2 border-gray-300 shadow-2xl">
+          {isActive ? (
+            <>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+              />
 
-            {/* Live Indicator */}
-            <div className="absolute top-10 right-2 flex items-center gap-1 bg-green-600 text-white px-2 py-1 rounded text-xs font-medium pointer-events-none">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-              <span>Live</span>
-            </div>
-
-            {/* Detection Status */}
-            {enabled && detectionStatus && (
-              <div className={`absolute bottom-2 left-2 right-2 px-2 py-1 rounded text-xs font-medium pointer-events-none ${
-                detectionStatus.includes('✓') || detectionStatus.includes('active') || detectionStatus.includes('Initializing')
-                  ? 'bg-green-600 text-white' 
-                  : 'bg-red-600 text-white flex items-center gap-1'
-              }`}>
-                {detectionStatus.includes('⚠️') && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
-                <span className="truncate">{detectionStatus}</span>
+              <div className="drag-handle absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-black/70 to-transparent cursor-grab active:cursor-grabbing flex items-center justify-between px-2 z-10 transition-colors hover:bg-black/30">
+                <div className="flex items-center gap-1 text-white text-xs font-medium">
+                  <Camera className="h-3 w-3" />
+                  <span>Proctor View</span>
+                </div>
+                <button
+                  onClick={toggleExpand}
+                  className="text-white hover:text-green-400 transition-colors p-1"
+                  title={isExpanded ? 'Minimize' : 'Maximize'}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  {isExpanded ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+                </button>
               </div>
-            )}
-          </>
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-            <CameraOff className="h-12 w-12 mb-2 opacity-50" />
-            <p className="text-sm opacity-75">Camera not active</p>
-          </div>
-        )}
+
+              <div className="absolute top-10 right-2 flex items-center gap-1 bg-green-600 text-white px-2 py-1 rounded text-xs font-medium pointer-events-none">
+                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                <span>Live</span>
+              </div>
+
+              {enabled && detectionStatus && (
+                <div className={`absolute bottom-2 left-2 right-2 px-2 py-1 rounded text-xs font-medium pointer-events-none transition-colors duration-300 ${detectionStatus.includes('✓')
+                    ? 'bg-green-600/90 text-white'
+                    : detectionStatus.includes('Initializing')
+                      ? 'bg-gray-600/90 text-white'
+                      : 'bg-red-600/90 text-white animate-pulse'
+                  }`}>
+                  <div className="flex items-center gap-2">
+                    {detectionStatus.includes('✓') && <ScanFace className="h-3 w-3" />}
+                    {detectionStatus.includes('Multiple') && <Users className="h-3 w-3" />}
+                    {detectionStatus.includes('Phone') && <Smartphone className="h-3 w-3" />}
+                    {detectionStatus.includes('⚠️') && !detectionStatus.includes('Phone') && !detectionStatus.includes('Multiple') && <AlertTriangle className="h-3 w-3" />}
+
+                    <span className="truncate flex-1">{detectionStatus}</span>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+              <CameraOff className="h-12 w-12 mb-2 opacity-50" />
+              <p className="text-sm opacity-75">Camera not active</p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </Draggable>
   );
 }

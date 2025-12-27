@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Camera, CheckCircle2, XCircle } from 'lucide-react';
-import { getExamConfig, getAttemptByStudentId, createAttempt, allocateQuestionSet } from '@/lib/db';
+import { getExamConfig, getAttemptByStudentId, createAttempt, allocateQuestionSet } from '@/lib/api';
 import { getQuestionSetForStudent } from '@/data/questions';
 import { requestCameraPermission, checkCameraAvailability } from '@/lib/camera';
 import { Question } from '@/lib/types';
@@ -37,12 +37,12 @@ export default function StartForm({ onStart }: StartFormProps) {
       const config = await getExamConfig();
       setExamOpen(config.examOpen);
       setProctoredMode(config.proctoredMode);
-      
+
       if (config.proctoredMode) {
         const available = await checkCameraAvailability();
         setCameraAvailable(available);
       }
-      
+
       setLoading(false);
     } catch (err) {
       console.error('Error loading exam status:', err);
@@ -55,7 +55,7 @@ export default function StartForm({ onStart }: StartFormProps) {
     const granted = await requestCameraPermission();
     setCameraGranted(granted);
     setShowConsentModal(false);
-    
+
     if (!granted) {
       setError('Camera access is required for this proctored exam. Please grant camera permission and try again.');
     }
@@ -97,7 +97,7 @@ export default function StartForm({ onStart }: StartFormProps) {
       // Allocate question set
       const questionSet = await allocateQuestionSet();
       const questionsData = getQuestionSetForStudent(questionSet);
-      
+
       if (!questionsData) {
         setError('Failed to load questions. Please try again.');
         return;

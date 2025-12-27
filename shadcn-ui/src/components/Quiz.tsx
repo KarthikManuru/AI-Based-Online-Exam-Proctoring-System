@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { getAttemptById, updateAttempt, getExamConfig } from '@/lib/db';
+import { getAttemptById, updateAttempt, getExamConfig } from '@/lib/api';
 import { validateAnswers } from '@/data/questions';
 import {
   setupAntiCheat,
@@ -214,9 +214,8 @@ export default function Quiz({
               <h1 className="text-xl font-bold text-black">CSE Department Quiz</h1>
               <p className="text-sm text-gray-600">Question Set: {questionSet}</p>
             </div>
-            <div className={`px-4 py-2 rounded-lg ${
-              timeRemaining < 120 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-            }`}>
+            <div className={`px-4 py-2 rounded-lg ${timeRemaining < 120 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+              }`}>
               <Clock className="inline mr-2 h-5 w-5" />
               <span className="font-mono font-bold">{Math.floor(timeRemaining / 60).toString().padStart(2, '0')}:{(timeRemaining % 60).toString().padStart(2, '0')}</span>
             </div>
@@ -255,11 +254,10 @@ export default function Quiz({
                   <button
                     key={index}
                     onClick={() => handleAnswerSelect(index)}
-                    className={`w-full text-left p-4 rounded-lg border-2 ${
-                      answers[currentQuestion] === index
+                    className={`w-full text-left p-4 rounded-lg border-2 ${answers[currentQuestion] === index
                         ? 'border-green-600 bg-green-50'
                         : 'border-gray-300 hover:bg-blue-50'
-                    }`}
+                      }`}
                   >
                     {option}
                   </button>

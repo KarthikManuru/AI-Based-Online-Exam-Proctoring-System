@@ -28,18 +28,18 @@ import {
   Unlock,
   Trash2,
 } from 'lucide-react';
-import { 
-  getExamConfig, 
-  updateExamConfig, 
-  getAllAttempts, 
-  addAdminLog, 
-  getAdminLogs, 
+import {
+  getExamConfig,
+  updateExamConfig,
+  getAllAttempts,
+  addAdminLog,
+  getAdminLogs,
   updateAttempt,
   deleteAttempt,
   clearAllAttempts,
   clearAllLogs
-} from '@/lib/db';
-import { Attempt, AdminLog } from '@/lib/types';
+} from '@/lib/api';
+import { Attempt, AdminLog } from '@/lib/api';
 import AttemptsList from './AttemptsList';
 
 interface AdminDashboardProps {
@@ -72,7 +72,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
       setNewAdminCode(config.adminResetCode);
 
       const attemptsData = await getAllAttempts();
-      setAttempts(attemptsData.sort((a, b) => 
+      setAttempts(attemptsData.sort((a, b) =>
         new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
       ));
 
@@ -472,8 +472,8 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 </Button>
               </CardHeader>
               <CardContent>
-                <AttemptsList 
-                  attempts={attempts} 
+                <AttemptsList
+                  attempts={attempts}
                   onRefresh={loadData}
                   onDelete={handleDeleteAttempt}
                 />
@@ -533,13 +533,13 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-black">Clear All History?</AlertDialogTitle>
             <AlertDialogDescription className="text-gray-700">
-              This will permanently delete all {stats.total} attempt records. Students will be able to re-attempt the quiz. 
+              This will permanently delete all {stats.total} attempt records. Students will be able to re-attempt the quiz.
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="border-gray-300 text-black hover:bg-gray-100">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleClearAllHistory}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
@@ -560,7 +560,7 @@ export default function AdminDashboard({ onLogout }: AdminDashboardProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="border-gray-300 text-black hover:bg-gray-100">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleClearAllLogs}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
