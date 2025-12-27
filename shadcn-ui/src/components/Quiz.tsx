@@ -143,6 +143,28 @@ export default function Quiz({
   }, [showCheatOverlay, submitting]);
 
   /* =======================
+     EXAM STATUS POLLING
+     ======================= */
+  useEffect(() => {
+    if (submitting) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const config = await getExamConfig();
+        if (!config.examOpen) {
+          console.log('Exam closed by admin. Auto-submitting...');
+          // Use a flag or alert to let user know? Maybe just submit.
+          handleSubmit();
+        }
+      } catch (err) {
+        console.error('Error polling exam status:', err);
+      }
+    }, 3000); // Check every 3 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [submitting]);
+
+  /* =======================
      AUTO SAVE
      ======================= */
   useEffect(() => {
@@ -255,8 +277,8 @@ export default function Quiz({
                     key={index}
                     onClick={() => handleAnswerSelect(index)}
                     className={`w-full text-left p-4 rounded-lg border-2 ${answers[currentQuestion] === index
-                        ? 'border-green-600 bg-green-50'
-                        : 'border-gray-300 hover:bg-blue-50'
+                      ? 'border-green-600 bg-green-50'
+                      : 'border-gray-300 hover:bg-blue-50'
                       }`}
                   >
                     {option}
