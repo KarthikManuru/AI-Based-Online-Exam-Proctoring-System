@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: cse-quiz-backend
+    runtime: node
+    region: singapore
+    plan: free
+    rootCommand: cd shadcn-ui/server
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: MONGODB_URI
+        sync: false # User must enter this manually in dashboard if not prompt
+
+  - type: static
+    name: cse-quiz-frontend
+    region: singapore
+    plan: free
+    rootCommand: cd shadcn-ui
+    buildCommand: npm install && npm run build
+    publishDir: dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: cse-quiz-backend
+          property: url
